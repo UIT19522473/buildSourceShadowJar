@@ -1,64 +1,56 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.text.SimpleDateFormat
 
 plugins {
   id 'java'
   id 'application'
-  id 'com.gradleup.shadow' version '9.2.2'
+  id 'com.github.johnrengelman.shadow' version '7.1.2'
 }
 
-group = 'com.example'
-version = new BuildVersion('1.0.0-xxx')
+group = 'demo'
+version = new Version('1.0.0-xxx')
 
 repositories {
   mavenCentral()
 }
 
+
 ext {
-  vertxVersion = '4.5.24'
-  junitJupiterVersion = '5.9.1'
-
+  vertxVersion = '3.4.2'
   mainVerticleName = 'com.example.starter.MainVerticle'
-  launcherClassName = 'io.vertx.core.Launcher'
-
-  watchForChange = 'src/**/*'
-  doOnChange = "${projectDir}/gradlew classes"
+  launcherClassName = 'io.vertx.core.Starter'
 }
 
-/* =====================
-   APPLICATION
-   ===================== */
+
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
+}
+
+allprojects {
+  tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+  }
+  tasks.withType(Test).configureEach {
+    systemProperty 'file.encoding', 'UTF-8'
+  }
+}
+
 application {
   mainClass = launcherClassName
 }
 
-/* =====================
-   DEPENDENCIES
-   ===================== */
 dependencies {
-  implementation platform("io.vertx:vertx-stack-depchain:$vertxVersion")
-  implementation 'io.vertx:vertx-web-client'
-  implementation 'io.vertx:vertx-web'
+  implementation "io.vertx:vertx-core:$vertxVersion"
+  implementation "io.vertx:vertx-web:$vertxVersion"
 
-  testImplementation 'io.vertx:vertx-junit5'
-  testImplementation "org.junit.jupiter:junit-jupiter:$junitJupiterVersion"
-  testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+  testImplementation "io.vertx:vertx-unit:$vertxVersion"
 }
 
-/* =====================
-   JAVA
-   ===================== */
-java {
-  sourceCompatibility = JavaVersion.VERSION_17
-  targetCompatibility = JavaVersion.VERSION_17
-}
-
-tasks.withType(ShadowJar).configureEach {
-  // version has timestamp
-  archiveVersion = project.version.toString()
-
-  // <project>-<version>.jar
-  archiveFileName = "${archiveBaseName.get()}-${archiveVersion.get()}.jar"
+shadowJar {
+  archiveBaseName.set('starterVertx')
+  archiveClassifier.set('')
+  archiveVersion.set(project.version.toString())
 
   manifest {
     attributes(
@@ -67,37 +59,29 @@ tasks.withType(ShadowJar).configureEach {
     )
   }
 
-  mergeServiceFiles()
+  mergeServiceFiles {
+    include 'META-INF/services/io.vertx.core.spi.VerticleFactory'
+  }
 }
 
+class Version {
+  String thisVersion
+  Date buildTime
 
-tasks.withType(JavaExec) {
-  args = [
-    'run',
-    mainVerticleName,
-    "--redeploy=$watchForChange",
-    "--launcher-class=$launcherClassName",
-    "--on-redeploy=$doOnChange"
-  ]
-}
-
-class BuildVersion {
-  String value
-  Date buildTime = new Date()
-
-  BuildVersion(String raw) {
-    this.value = raw.replace('xxx', timestamp())
+  Version(String versionValue) {
+    buildTime = new Date()
+    thisVersion = versionValue.replace('xxx', getTimestamp())
   }
 
-  String timestamp() {
-    def fmt = new SimpleDateFormat('yyyyMMddHHmmss')
-    fmt.setCalendar(
+  String getTimestamp() {
+    def format = new SimpleDateFormat('yyyyMMddHHmmss')
+    format.setCalendar(
       Calendar.getInstance(TimeZone.getTimeZone('Asia/Ho_Chi_Minh'))
     )
-    fmt.format(buildTime)
+    return format.format(buildTime)
   }
 
   String toString() {
-    value
+    thisVersion
   }
 }
